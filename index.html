@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kuzu 图谱编辑工作台</title>
+
+  <link href="./dist/jsoneditor.min.css" rel="stylesheet" type="text/css" />
+  <script src="./dist/jsoneditor.min.js"></script>
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: Arial, "Microsoft YaHei", sans-serif;
+      background: #f5f6f8;
+      color: #1f2937;
+    }
+
+    .app {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .left-panel {
+      width: 58%;
+      min-width: 520px;
+      display: flex;
+      flex-direction: column;
+      background: #ffffff;
+      border-right: 1px solid #e5e7eb;
+    }
+
+    .right-panel {
+      width: 42%;
+      min-width: 480px;
+      display: flex;
+      flex-direction: column;
+      background: #fafbfc;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      min-height: 56px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #ffffff;
+      gap: 12px;
+    }
+
+    .panel-header .left {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #111827;
+    }
+
+    .panel-subtitle {
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    button, select, input, textarea {
+      font-size: 13px;
+      border-radius: 6px;
+      border: 1px solid #cfd6e4;
+      background: #ffffff;
+      color: #374151;
+    }
+
+    button {
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    button:hover {
+      background: #f3f4f6;
+    }
+
+    button.primary {
+      border-color: #2563eb;
+      background: #2563eb;
+      color: #ffffff;
+    }
+
+    button.primary:hover {
+      background: #1d4ed8;
+    }
+
+    button.danger {
+      border-color: #dc2626;
+      background: #dc2626;
+      color: #ffffff;
+    }
+
+    button.danger:hover {
+      background: #b91c1c;
+    }
+
+    button.active {
+      border-color: #059669;
+      background: #059669;
+      color: #ffffff;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    input, select, textarea {
+      padding: 8px 10px;
+      outline: none;
+      min-width: 0;
+    }
+
+    .graph-tools {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f8fafc;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .graph-tools .search-input {
+      min-width: 180px;
+      flex: 1;
+    }
+
+    .search-results {
+      max-height: 120px;
+      overflow: auto;
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 6px;
+    }
+
+    .search-item {
+      padding: 8px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      color: #374151;
+    }
+
+    .search-item:hover {
+      background: #f3f4f6;
+    }
+
+    .graph-container {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+    }
+
+    #graph {
+      width: 100%;
+      height: 100%;
+    }
+
+    .loading-mask {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.72);
+      z-index: 9;
+      font-size: 14px;
+      color: #334155;
+    }
+
+    .loading-mask.show {
+      display: flex;
+    }
+
+    .right-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+    }
+
+    .editor-meta,
+    .section-box {
+      margin: 12px;
+      padding: 12px 14px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      background: #ffffff;
+    }
+
+    .editor-meta {
+      margin-bottom: 0;
+      font-size: 13px;
+      line-height: 1.7;
+      color: #374151;
+    }
+
+    .editor-meta strong {
+      color: #111827;
+    }
+
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      color: #111827;
+    }
+
+    .hint {
+      margin-top: 4px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    .legend {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 12px;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #4b5563;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .form-grid.single {
+      grid-template-columns: 1fr;
+    }
+
+    .editor-container {
+      margin: 12px;
+      margin-top: 0;
+      height: 360px;
+      overflow: hidden;
+      background: #ffffff;
+      border: 1px solid #dbe2ea;
+      border-radius: 8px;
+    }
+
+    #jsoneditor {
+      width: 100%;
+      height: 100%;
+    }
+
+    .status-bar {
+      height: 42px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      border-top: 1px solid #e5e7eb;
+      background: #ffffff;
+      font-size: 13px;
+      color: #4b5563;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-bar.error {
+      color: #b91c1c;
+    }
+
+    @media (max-width: 1280px) {
+      .app {
+        flex-direction: column;
+      }
+
+      .left-panel, .right-panel {
+        width: 100%;
+        min-width: auto;
+      }
+
+      .left-panel {
+        height: 48%;
+        border-right: none;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .right-panel {
+        height: 52%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="left-panel">
+      <div class="panel-header">
+        <div class="left">
+          <span class="panel-title">图谱视图</span>
+          <span class="panel-subtitle">点击节点编辑；边仅用于结构展示与删除</span>
+        </div>
+        <div class="toolbar">
+          <button id="btnReloadGraph">刷新图谱</button>
+          <button id="btnFitGraph">重置视图</button>
+          <button id="btnTogglePhysics">物理效果：关</button>
+          <button id="btnDebugGraph">调试图谱</button>
+        </div>
+      </div>
+
+      <div class="graph-tools">
+        <input id="searchInput" class="search-input" type="text" placeholder="按 name 模糊搜索节点..." />
+        <button id="btnSearch">搜索</button>
+        <button id="btnClearSearch">清空搜索</button>
+        <div id="searchResults" class="search-results" style="display:none;"></div>
+      </div>
+
+      <div class="graph-container">
+        <div id="graph"></div>
+        <div id="graphLoading" class="loading-mask">正在加载图谱数据...</div>
+      </div>
+
+      <div class="status-bar" id="graphStatus">图谱尚未加载。</div>
+    </section>
+
+    <section class="right-panel">
+      <div class="panel-header">
+        <div class="left">
+          <span class="panel-title">节点编辑与结构管理</span>
+          <span class="panel-subtitle">节点可编辑；边不编辑属性</span>
+        </div>
+        <div class="toolbar">
+          <button id="btnReloadSelection">重新加载</button>
+          <button id="btnSave" class="primary">保存节点</button>
+          <button id="btnDeleteCurrentNode" class="danger">删除当前节点</button>
+        </div>
+      </div>
+
+      <div class="right-scroll">
+        <div class="editor-meta" id="editorMeta">
+          当前未选中任何节点。
+        </div>
+
+        <div class="editor-container">
+          <div id="jsoneditor"></div>
+        </div>
+
+        <div class="section-box">
+          <div class="section-title">新增节点</div>
+          <div class="form-grid single">
+            <select id="createNodeTable"></select>
+            <textarea id="createNodeJson" style="width:100%;height:140px;resize:vertical;">{
+  "name": ""
+}</textarea>
+            <button id="btnCreateNode" class="primary">创建节点</button>
+          </div>
+          <div class="hint">系统会自动生成 uuid4 字符串作为 id，请不要填写 id 字段。</div>
+        </div>
+
+        <div class="section-box">
+          <div class="section-title">新增关系</div>
+          <div class="form-grid">
+            <select id="relFromTable"></select>
+            <input id="relFromId" placeholder="起点节点 id" />
+            <select id="relType"></select>
+            <select id="relToTable"></select>
+            <input id="relToId" placeholder="终点节点 id" />
+          </div>
+          <div style="margin-top:10px;">
+            <button id="btnCreateRelation" class="primary">创建关系</button>
+          </div>
+        </div>
+
+        <div class="section-box">
+          <div class="section-title">删除关系</div>
+          <div class="form-grid">
+            <select id="delRelFromTable"></select>
+            <input id="delRelFromId" placeholder="起点节点 id" />
+            <select id="delRelType"></select>
+            <select id="delRelToTable"></select>
+            <input id="delRelToId" placeholder="终点节点 id" />
+          </div>
+          <div style="margin-top:10px;">
+            <button id="btnDeleteRelation" class="danger">删除关系</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar" id="editorStatus">请先在左侧图谱中选择一个节点。</div>
+    </section>
+  </div>
+
+  <script>
+    let graphState = { nodes: [], edges: [] };
+    let schemaState = { nodeTables: [], relTables: [] };
+    let visNodes = null;
+    let visEdges = null;
+    let network = null;
+    let editor = null;
+
+    let currentSelection = {
+      type: null,
+      id: null,
+      table: null
+    };
+
+    let tableColorMap = {};
+
+    // 用户手动开关状态：true 表示持续开启，false 表示持续关闭
+    let physicsEnabled = false;
+
+    // 临时物理效果：仅用于刷新后自动整理布局
+    let tempPhysicsActive = false;
+    let tempPhysicsTimer = null;
+
+    let blinkTimer = null;
+    let blinkTargetNodeId = null;
+    let blinkNodeVisible = false;
+    let blinkEdgeVisible = false;
+
+    const TEMP_PHYSICS_DURATION = 2600;
+
+    const TABLE_PALETTE = [
+      "#60a5fa", "#34d399", "#f59e0b", "#f472b6", "#a78bfa", "#f87171",
+      "#22c55e", "#06b6d4", "#eab308", "#8b5cf6", "#14b8a6", "#fb7185"
+    ];
+
+    const graphLoadingEl = document.getElementById("graphLoading");
+    const graphStatusEl = document.getElementById("graphStatus");
+    const editorStatusEl = document.getElementById("editorStatus");
+    const editorMetaEl = document.getElementById("editorMeta");
+
+    const btnReloadGraph = document.getElementById("btnReloadGraph");
+    const btnFitGraph = document.getElementById("btnFitGraph");
+    const btnReloadSelection = document.getElementById("btnReloadSelection");
+    const btnSave = document.getElementById("btnSave");
+    const btnDeleteCurrentNode = document.getElementById("btnDeleteCurrentNode");
+    const btnDebugGraph = document.getElementById("btnDebugGraph");
+    const btnTogglePhysics = document.getElementById("btnTogglePhysics");
+
+    const searchInput = document.getElementById("searchInput");
+    const btnSearch = document.getElementById("btnSearch");
+    const btnClearSearch = document.getElementById("btnClearSearch");
+    const searchResultsEl = document.getElementById("searchResults");
+
+    const createNodeTable = document.getElementById("createNodeTable");
+    const createNodeJson = document.getElementById("createNodeJson");
+    const btnCreateNode = document.getElementById("btnCreateNode");
+
+    const relFromTable = document.getElementById("relFromTable");
+    const relFromId = document.getElementById("relFromId");
+    const relType = document.getElementById("relType");
+    const relToTable = document.getElementById("relToTable");
+    const relToId = document.getElementById("relToId");
+    const btnCreateRelation = document.getElementById("btnCreateRelation");
+
+    const delRelFromTable = document.getElementById("delRelFromTable");
+    const delRelFromId = document.getElementById("delRelFromId");
+    const delRelType = document.getElementById("delRelType");
+    const delRelToTable = document.getElementById("delRelToTable");
+    const delRelToId = document.getElementById("delRelToId");
+    const btnDeleteRelation = document.getElementById("btnDeleteRelation");
+
+    function setGraphStatus(text, isError = false) {
+      graphStatusEl.textContent = text;
+      graphStatusEl.classList.toggle("error", !!isError);
+    }
+
+    function setEditorStatus(text, isError = false) {
+      editorStatusEl.textContent = text;
+      editorStatusEl.classList.toggle("error", !!isError);
+    }
+
+    function setGraphLoading(show, text = "正在加载图谱数据...") {
+      graphLoadingEl.textContent = text;
+      graphLoadingEl.classList.toggle("show", !!show);
+    }
+
+    function getPhysicsActuallyEnabled() {
+      return physicsEnabled || tempPhysicsActive;
+    }
+
+    function updatePhysicsButtonUI() {
+      btnTogglePhysics.textContent = `物理效果：${physicsEnabled ? "开" : "关"}`;
+      btnTogglePhysics.classList.toggle("active", physicsEnabled);
+    }
+
+    function deepClone(obj) {
+      return JSON.parse(JSON.stringify(obj));
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function isPrimitiveValue(value) {
+      return (
+        value === null ||
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+      );
+    }
+
+    function findInvalidComplexField(obj) {
+      for (const key of Object.keys(obj)) {
+        if (!isPrimitiveValue(obj[key])) return key;
+      }
+      return null;
+    }
+
+    function buildTableColorMap(nodes) {
+      const tables = [...new Set(nodes.map(node => node.table).filter(Boolean))].sort();
+      const map = {};
+      tables.forEach((table, index) => {
+        map[table] = TABLE_PALETTE[index % TABLE_PALETTE.length];
+      });
+      tableColorMap = map;
+    }
+
+    function pickNodeColor(table) {
+      return tableColorMap[table] || "#94a3b8";
+    }
+
+    function renderLegendHtml() {
+      const tables = Object.keys(tableColorMap);
+      if (tables.length === 0) return "";
+
+      return `<div class="legend">${
+        tables.map(table => `
+          <span class="legend-item">
+            <span class="legend-dot" style="background:${tableColorMap[table]}"></span>
+            <span>${escapeHtml(table)}</span>
+          </span>
+        `).join("")
+      }</div>`;
+    }
+
+    function updateEditorMeta(data) {
+      if (!data || data.entityType !== "node") {
+        editorMetaEl.innerHTML = `
+          <div><strong>当前未选中节点。</strong></div>
+          <div class="hint">点击节点进入编辑；点击边仅显示结构提示，不进入右侧编辑器。</div>
+          ${renderLegendHtml()}
+        `;
+        return;
+      }
+
+      editorMetaEl.innerHTML = `
+        <div><strong>当前对象类型：</strong>节点</div>
+        <div><strong>所属表：</strong>${escapeHtml(data.table || "-")}</div>
+        <div><strong>对象 ID：</strong>${escapeHtml(data.id || "-")}</div>
+        <div class="hint">节点可编辑，但 id 不可修改；属性值只能为 int / float / bool / string / null。</div>
+        ${renderLegendHtml()}
+      `;
+    }
+
+    async function apiGet(url) {
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data?.error || `请求失败: ${res.status}`);
+      return data.data;
+    }
+
+    async function apiPost(url, payload) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data?.error || `请求失败: ${res.status}`);
+      return data.data;
+    }
+
+    function initJsonEditor() {
+      const container = document.getElementById("jsoneditor");
+
+      editor = new JSONEditor(container, {
+        mode: "tree",
+        modes: ["tree", "form", "view", "code"],
+        mainMenuBar: false,
+        navigationBar: false,
+        statusBar: false,
+        onEditable: function(node) {
+          if (currentSelection.type !== "node") return true;
+          const field = node.field;
+          if (field === "id" || field === "table" || field === "entityType") {
+            return { field: false, value: false };
+          }
+          return true;
+        },
+        onError: function(error) {
+          console.error(error);
+          setEditorStatus("编辑器错误：" + error.message, true);
+        }
+      });
+
+      editor.set({ message: "请先在左侧选择一个节点" });
+    }
+
+    function applyPhysicsStateToNetwork() {
+      if (!network) return;
+
+      const enabled = getPhysicsActuallyEnabled();
+
+      network.setOptions({
+        physics: {
+          enabled,
+          stabilization: enabled ? { iterations: 200 } : false
+        }
+      });
+
+      if (enabled) {
+        network.stabilize(200);
+      }
+    }
+
+    function clearTempPhysicsTimer() {
+      if (tempPhysicsTimer) {
+        clearTimeout(tempPhysicsTimer);
+        tempPhysicsTimer = null;
+      }
+    }
+
+    function activateTemporaryPhysics(duration = TEMP_PHYSICS_DURATION) {
+      clearTempPhysicsTimer();
+
+      // 如果用户已经手动打开物理效果，就不需要临时模式来接管
+      if (physicsEnabled) {
+        applyPhysicsStateToNetwork();
+        return;
+      }
+
+      tempPhysicsActive = true;
+      applyPhysicsStateToNetwork();
+
+      tempPhysicsTimer = setTimeout(() => {
+        tempPhysicsActive = false;
+        applyPhysicsStateToNetwork();
+        setGraphStatus("图谱整理完成，已自动关闭临时物理效果。");
+      }, duration);
+    }
+
+    function setPhysicsEnabledByUser(enabled) {
+      physicsEnabled = enabled;
+      updatePhysicsButtonUI();
+
+      // 用户手动切换时，临时状态不再主导
+      if (physicsEnabled) {
+        clearTempPhysicsTimer();
+        tempPhysicsActive = false;
+        applyPhysicsStateToNetwork();
+        setGraphStatus("物理效果已手动开启，将保持开启。");
+      } else {
+        clearTempPhysicsTimer();
+        tempPhysicsActive = false;
+        applyPhysicsStateToNetwork();
+        setGraphStatus("物理效果已手动关闭。");
+      }
+    }
+
+    function togglePhysics() {
+      setPhysicsEnabledByUser(!physicsEnabled);
+    }
+
+    function getNodeMeta(nodeId) {
+      return graphState.nodes.find(n => n.id === nodeId) || null;
+    }
+
+    function getConnectedEdgeIds(nodeId) {
+      return graphState.edges
+        .filter(e => e.from === nodeId || e.to === nodeId)
+        .map(e => e.id);
+    }
+
+    function getNodeNormalStyle(nodeId) {
+      const nodeMeta = getNodeMeta(nodeId);
+      const baseColor = pickNodeColor(nodeMeta?.table);
+      return {
+        background: baseColor,
+        border: "#475569",
+        highlight: {
+          background: baseColor,
+          border: "#111827"
+        }
+      };
+    }
+
+    function getNodeBlinkStyle(active) {
+      if (active) {
+        return {
+          background: "#fde047",
+          border: "#f59e0b",
+          highlight: {
+            background: "#fde047",
+            border: "#d97706"
+          }
+        };
+      }
+      return null;
+    }
+
+    function getEdgeNormalStyle() {
+      return {
+        color: "#94a3b8",
+        highlight: "#334155",
+        hover: "#475569",
+        inherit: false
+      };
+    }
+
+    function getEdgeBlinkStyle(active) {
+      if (active) {
+        return {
+          color: "#f59e0b",
+          highlight: "#d97706",
+          hover: "#d97706",
+          inherit: false
+        };
+      }
+      return null;
+    }
+
+    function stopBlinkHighlight() {
+      if (blinkTimer) {
+        clearInterval(blinkTimer);
+        blinkTimer = null;
+      }
+
+      if (blinkTargetNodeId && visNodes && visNodes.get(blinkTargetNodeId)) {
+        visNodes.update({
+          id: blinkTargetNodeId,
+          color: getNodeNormalStyle(blinkTargetNodeId)
+        });
+      }
+
+      if (blinkTargetNodeId && visEdges) {
+        const edgeIds = getConnectedEdgeIds(blinkTargetNodeId);
+        edgeIds.forEach(edgeId => {
+          if (visEdges.get(edgeId)) {
+            visEdges.update({
+              id: edgeId,
+              color: getEdgeNormalStyle(),
+              width: 2
+            });
+          }
+        });
+      }
+
+      blinkTargetNodeId = null;
+      blinkNodeVisible = false;
+      blinkEdgeVisible = false;
+    }
+
+    function startBlinkHighlight(nodeId) {
+      stopBlinkHighlight();
+
+      if (!visNodes || !visNodes.get(nodeId)) return;
+
+      blinkTargetNodeId = nodeId;
+      blinkNodeVisible = false;
+      blinkEdgeVisible = false;
+
+      const connectedEdgeIds = getConnectedEdgeIds(nodeId);
+
+      blinkTimer = setInterval(() => {
+        if (!visNodes || !visNodes.get(nodeId)) return;
+
+        blinkNodeVisible = !blinkNodeVisible;
+        blinkEdgeVisible = !blinkEdgeVisible;
+
+        visNodes.update({
+          id: nodeId,
+          color: blinkNodeVisible
+            ? getNodeBlinkStyle(true)
+            : getNodeNormalStyle(nodeId)
+        });
+
+        connectedEdgeIds.forEach(edgeId => {
+          if (!visEdges || !visEdges.get(edgeId)) return;
+          visEdges.update({
+            id: edgeId,
+            color: blinkEdgeVisible
+              ? getEdgeBlinkStyle(true)
+              : getEdgeNormalStyle(),
+            width: blinkEdgeVisible ? 4 : 2
+          });
+        });
+      }, 700);
+    }
+
+    async function loadSchema() {
+      schemaState = await apiGet("/api/schema");
+      fillSchemaControls();
+    }
+
+    function fillSelect(selectEl, values, placeholder = "") {
+      selectEl.innerHTML = "";
+      if (placeholder) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = placeholder;
+        selectEl.appendChild(opt);
+      }
+
+      values.forEach(value => {
+        const opt = document.createElement("option");
+        opt.value = value;
+        opt.textContent = value;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    function fillSchemaControls() {
+      const nodeTableNames = schemaState.nodeTables.map(t => t.name);
+      const relTableNames = schemaState.relTables.map(t => t.name);
+
+      fillSelect(createNodeTable, nodeTableNames, "选择节点类型");
+      fillSelect(relFromTable, nodeTableNames, "起点类型");
+      fillSelect(relToTable, nodeTableNames, "终点类型");
+      fillSelect(delRelFromTable, nodeTableNames, "起点类型");
+      fillSelect(delRelToTable, nodeTableNames, "终点类型");
+
+      fillSelect(relType, relTableNames, "关系类型");
+      fillSelect(delRelType, relTableNames, "关系类型");
+    }
+
+    async function loadGraphFromServer(options = {}) {
+      const {
+        useTemporaryPhysics = false,
+        temporaryPhysicsDuration = TEMP_PHYSICS_DURATION,
+        fitAfterRender = true
+      } = options;
+
+      setGraphLoading(true, "正在加载图谱数据...");
+      setGraphStatus("正在加载图谱...");
+      btnReloadGraph.disabled = true;
+
+      try {
+        const data = await apiGet("/api/graph");
+        const nodes = Array.isArray(data.nodes) ? data.nodes : [];
+        const rawEdges = Array.isArray(data.edges) ? data.edges : [];
+
+        buildTableColorMap(nodes);
+
+        const nodeIdSet = new Set(nodes.map(node => node.id).filter(Boolean));
+        const edges = rawEdges.filter(edge => {
+          return edge && edge.id && edge.from && edge.to && nodeIdSet.has(edge.from) && nodeIdSet.has(edge.to);
+        });
+
+        graphState = { nodes, edges };
+        renderGraph({ fitAfterRender });
+
+        if (useTemporaryPhysics) {
+          activateTemporaryPhysics(temporaryPhysicsDuration);
+        }
+
+        setGraphStatus(
+          `图谱加载完成：${nodes.length} 个节点，${edges.length} 条关系。当前物理效果${getPhysicsActuallyEnabled() ? "开启" : "关闭"}。`
+        );
+      } catch (error) {
+        console.error(error);
+        setGraphStatus("图谱加载失败：" + error.message, true);
+        throw error;
+      } finally {
+        btnReloadGraph.disabled = false;
+        setGraphLoading(false);
+      }
+    }
+
+    function renderGraph(options = {}) {
+      const { fitAfterRender = true } = options;
+      const container = document.getElementById("graph");
+
+      stopBlinkHighlight();
+
+      visNodes = new vis.DataSet(
+        graphState.nodes.map(node => ({
+          id: node.id,
+          label: `${node.label || node.id}\n(${node.table || "Node"})`,
+          color: getNodeNormalStyle(node.id),
+          shape: "dot",
+          size: 20,
+          font: { color: "#1f2937", size: 16 }
+        }))
+      );
+
+      visEdges = new vis.DataSet(
+        graphState.edges.map(edge => ({
+          id: edge.id,
+          from: edge.from,
+          to: edge.to,
+          label: edge.label || edge.table || "",
+          arrows: { to: { enabled: true, scaleFactor: 0.8 } },
+          color: getEdgeNormalStyle(),
+          width: 2,
+          selectionWidth: 3,
+          font: {
+            align: "middle",
+            size: 12,
+            background: "#ffffff",
+            strokeWidth: 0
+          },
+          smooth: {
+            enabled: true,
+            type: "dynamic",
+            roundness: 0.4
+          }
+        }))
+      );
+
+      const optionsForNetwork = {
+        autoResize: true,
+        physics: {
+          enabled: getPhysicsActuallyEnabled(),
+          stabilization: getPhysicsActuallyEnabled() ? { iterations: 200 } : false
+        },
+        interaction: {
+          hover: true,
+          multiselect: false,
+          selectConnectedEdges: true
+        }
+      };
+
+      if (network) {
+        network.destroy();
+      }
+
+      network = new vis.Network(container, { nodes: visNodes, edges: visEdges }, optionsForNetwork);
+
+      network.on("click", async function(params) {
+        try {
+          if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const nodeMeta = getNodeMeta(nodeId);
+            if (nodeMeta) {
+              startBlinkHighlight(nodeId);
+              await handleNodeSelect(nodeMeta.table, nodeId);
+            }
+            return;
+          }
+
+          if (params.edges.length > 0) {
+            const edgeId = params.edges[0];
+            const edgeMeta = graphState.edges.find(e => e.id === edgeId);
+            if (edgeMeta) {
+              clearSelection();
+              stopBlinkHighlight();
+              setEditorStatus(`当前边为结构关系：${edgeMeta.table}（不支持属性编辑）。`);
+              setGraphStatus(`已选中关系：${edgeMeta.table} (${edgeMeta.from} -> ${edgeMeta.to})`);
+            }
+            return;
+          }
+
+          clearSelection();
+          stopBlinkHighlight();
+        } catch (error) {
+          console.error(error);
+          setEditorStatus("加载对象失败：" + error.message, true);
+        }
+      });
+
+      applyPhysicsStateToNetwork();
+
+      if (fitAfterRender && graphState.nodes.length > 0) {
+        setTimeout(() => {
+          network.fit({ animation: true });
+        }, 60);
+      }
+    }
+
+    function fitGraph() {
+      if (!network) {
+        setGraphStatus("图谱尚未初始化。", true);
+        return;
+      }
+      network.fit({ animation: true });
+      setGraphStatus(`图谱视图已重置，当前物理效果${getPhysicsActuallyEnabled() ? "开启" : "关闭"}。`);
+    }
+
+    async function handleNodeSelect(table, nodeId) {
+      setEditorStatus("正在加载节点详情...");
+
+      const data = await apiGet(`/api/node?table=${encodeURIComponent(table)}&id=${encodeURIComponent(nodeId)}`);
+
+      currentSelection = {
+        type: "node",
+        id: nodeId,
+        table: table
+      };
+
+      editor.set(deepClone(data));
+      updateEditorMeta(data);
+      setGraphStatus(`已选中节点：${data.table} / ${data.id}`);
+      setEditorStatus("节点数据已加载到右侧编辑器。");
+    }
+
+    function clearSelection() {
+      currentSelection = { type: null, id: null, table: null };
+      editor.set({ message: "请先在左侧选择一个节点" });
+      updateEditorMeta(null);
+    }
+
+    async function reloadSelection() {
+      if (currentSelection.type !== "node" || !currentSelection.id || !currentSelection.table) {
+        setEditorStatus("当前没有可重新加载的节点。", true);
+        return;
+      }
+
+      btnReloadSelection.disabled = true;
+      try {
+        startBlinkHighlight(currentSelection.id);
+        await handleNodeSelect(currentSelection.table, currentSelection.id);
+      } catch (error) {
+        console.error(error);
+        setEditorStatus("重新加载失败：" + error.message, true);
+      } finally {
+        btnReloadSelection.disabled = false;
+      }
+    }
+
+    async function saveCurrentSelection() {
+      if (currentSelection.type !== "node" || !currentSelection.id || !currentSelection.table) {
+        setEditorStatus("当前没有选中节点，无法保存。", true);
+        return;
+      }
+
+      let newData = null;
+      try {
+        newData = editor.get();
+      } catch (error) {
+        setEditorStatus("当前 JSON 无法解析，保存失败。", true);
+        return;
+      }
+
+      if (!newData || typeof newData !== "object" || Array.isArray(newData)) {
+        setEditorStatus("编辑内容必须是一个对象。", true);
+        return;
+      }
+
+      if (typeof newData.id !== "string" || !newData.id.trim()) {
+        setEditorStatus("节点必须包含非空字符串 id。", true);
+        return;
+      }
+
+      if (newData.id !== currentSelection.id) {
+        setEditorStatus("不允许修改节点 id。", true);
+        return;
+      }
+
+      const invalidField = findInvalidComplexField(newData);
+      if (invalidField) {
+        setEditorStatus(`字段 ${invalidField} 的值不是允许的基础类型。`, true);
+        return;
+      }
+
+      btnSave.disabled = true;
+      setEditorStatus("正在保存节点...");
+
+      try {
+        const latest = await apiPost("/api/node/update", {
+          table: currentSelection.table,
+          id: currentSelection.id,
+          data: newData
+        });
+
+        editor.set(deepClone(latest));
+        updateEditorMeta(latest);
+        await loadGraphFromServer({ useTemporaryPhysics: true });
+        startBlinkHighlight(latest.id);
+        setGraphStatus(`已保存节点：${latest.table} / ${latest.id}`);
+        setEditorStatus("节点保存成功。");
+      } catch (error) {
+        console.error(error);
+        setEditorStatus("保存失败：" + error.message, true);
+      } finally {
+        btnSave.disabled = false;
+      }
+    }
+
+    async function createNode() {
+      const table = createNodeTable.value;
+      if (!table) {
+        setEditorStatus("请先选择节点类型。", true);
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(createNodeJson.value);
+      } catch {
+        setEditorStatus("新增节点 JSON 不是合法格式。", true);
+        return;
+      }
+
+      if (!data || typeof data !== "object" || Array.isArray(data)) {
+        setEditorStatus("新增节点数据必须是对象。", true);
+        return;
+      }
+
+      if ("id" in data) {
+        setEditorStatus("新增节点时不要填写 id，系统会自动生成 uuid4。", true);
+        return;
+      }
+
+      const invalidField = findInvalidComplexField(data);
+      if (invalidField) {
+        setEditorStatus(`新增节点字段 ${invalidField} 含复杂结构。`, true);
+        return;
+      }
+
+      try {
+        const result = await apiPost("/api/node/create", { table, data });
+        await loadGraphFromServer({ useTemporaryPhysics: true });
+
+        if (result?.id) {
+          const createdId = result.id;
+          const createdNode = result.node;
+          currentSelection = {
+            type: "node",
+            id: createdId,
+            table: table
+          };
+
+          if (createdNode) {
+            editor.set(deepClone(createdNode));
+            updateEditorMeta(createdNode);
+          }
+
+          if (network && visNodes.get(createdId)) {
+            network.selectNodes([createdId]);
+            network.focus(createdId, {
+              scale: 1.2,
+              animation: {
+                duration: 600,
+                easingFunction: "easeInOutQuad"
+              }
+            });
+          }
+
+          startBlinkHighlight(createdId);
+          setGraphStatus(`已创建节点：${table} / ${createdId}`);
+        } else {
+          setGraphStatus("节点已创建。");
+        }
+
+        setEditorStatus("节点创建成功。");
+      } catch (error) {
+        console.error(error);
+        setEditorStatus("创建节点失败：" + error.message, true);
+      }
+    }
+
+    async function deleteCurrentNode() {
+      if (currentSelection.type !== "node" || !currentSelection.id || !currentSelection.table) {
+        setEditorStatus("请先选择一个节点再删除。", true);
+        return;
+      }
+
+      const deletingId = currentSelection.id;
+      const deletingTable = currentSelection.table;
+
+      if (!confirm(`确定删除节点 ${deletingTable} / ${deletingId} 吗？`)) {
+        return;
+      }
+
+      try {
+        await apiPost("/api/node/delete", {
+          table: deletingTable,
+          id: deletingId
+        });
+
+        stopBlinkHighlight();
+        clearSelection();
+        await loadGraphFromServer({ useTemporaryPhysics: true });
+        setEditorStatus("节点删除成功。");
+        setGraphStatus(`已删除节点：${deletingTable} / ${deletingId}`);
+      } catch (error) {
+        console.error(error);
+        setEditorStatus("删除节点失败：" + error.message, true);
+      }
+    }
+
+    async function createRelation() {
+      const payload = {
+        fromTable: relFromTable.value,
+        fromId: relFromId.value.trim(),
+        relTable: relType.value,
+        toTable: relToTable.value,
+        toId: relToId.value.trim()
+      };
+
+      if (!payload.fromTable || !payload.fromId || !payload.relTable || !payload.toTable || !payload.toId) {
+        setEditorStatus("创建关系时请完整填写起点、终点和关系类型。", true);
+        return;
+      }
+
+      try {
+        await apiPost("/api/relation/create", payload);
+        await loadGraphFromServer({ useTemporaryPhysics: true });
+        startBlinkHighlight(payload.fromId);
+        setEditorStatus("关系创建成功。");
+        setGraphStatus(`已创建关系：${payload.relTable} (${payload.fromId} -> ${payload.toId})`);
+      } catch (error) {
+        console.error(error);
+        setEditorStatus("创建关系失败：" + error.message, true);
+      }
+    }
+
+    async function deleteRelation() {
+      const payload = {
+        fromTable: delRelFromTable.value,
+        fromId: delRelFromId.value.trim(),
+        relTable: delRelType.value,
+        toTable: delRelToTable.value,
+        toId: delRelToId.value.trim()
+      };
+
+      if (!payload.fromTable || !payload.fromId || !payload.relTable || !payload.toTable || !payload.toId) {
+        setEditorStatus("删除关系时请完整填写起点、终点和关系类型。", true);
+        return;
+      }
+
+      try {
+        await apiPost("/api/relation/delete", payload);
+        await loadGraphFromServer({ useTemporaryPhysics: true });
+        startBlinkHighlight(payload.fromId);
+        setEditorStatus("关系删除成功。");
+        setGraphStatus(`已删除关系：${payload.relTable} (${payload.fromId} -> ${payload.toId})`);
+      } catch (error) {
+        console.error(error);
+        setEditorStatus("删除关系失败：" + error.message, true);
+      }
+    }
+
+    async function searchNodes() {
+      const keyword = searchInput.value.trim();
+      if (!keyword) {
+        setGraphStatus("请输入搜索关键词。", true);
+        return;
+      }
+
+      try {
+        const results = await apiGet(`/api/search?keyword=${encodeURIComponent(keyword)}`);
+        renderSearchResults(results);
+        setGraphStatus(`搜索完成，共找到 ${results.length} 个候选结果。`);
+      } catch (error) {
+        console.error(error);
+        setGraphStatus("搜索失败：" + error.message, true);
+      }
+    }
+
+    function renderSearchResults(results) {
+      if (!results || results.length === 0) {
+        searchResultsEl.style.display = "block";
+        searchResultsEl.innerHTML = `<div class="search-item">没有搜索到结果。</div>`;
+        return;
+      }
+
+      searchResultsEl.style.display = "block";
+      searchResultsEl.innerHTML = results.map(item => `
+        <div class="search-item" data-node-id="${escapeHtml(item.id)}" data-table="${escapeHtml(item.table)}">
+          ${escapeHtml(item.name)} ｜ ${escapeHtml(item.table)} ｜ id=${escapeHtml(item.id)} ｜ 距离=${item.distance}
+        </div>
+      `).join("");
+
+      searchResultsEl.querySelectorAll(".search-item").forEach(el => {
+        el.addEventListener("click", async () => {
+          const nodeId = el.getAttribute("data-node-id");
+          const table = el.getAttribute("data-table");
+
+          if (network && visNodes.get(nodeId)) {
+            network.selectNodes([nodeId]);
+            network.focus(nodeId, {
+              scale: 1.2,
+              animation: {
+                duration: 600,
+                easingFunction: "easeInOutQuad"
+              }
+            });
+          }
+
+          startBlinkHighlight(nodeId);
+          await handleNodeSelect(table, nodeId);
+          setGraphStatus(`已定位搜索结果：${table} / ${nodeId}`);
+        });
+      });
+    }
+
+    function clearSearch() {
+      searchInput.value = "";
+      searchResultsEl.style.display = "none";
+      searchResultsEl.innerHTML = "";
+      stopBlinkHighlight();
+      setGraphStatus("已清空搜索结果。");
+    }
+
+    async function debugGraph() {
+      try {
+        const data = await apiGet("/api/debug/graph");
+        console.log("图谱调试数据：", data);
+        alert("调试数据已输出到浏览器控制台（F12 -> Console）。");
+      } catch (error) {
+        console.error(error);
+        alert("调试接口调用失败：" + error.message);
+      }
+    }
+
+    function bindEvents() {
+      btnReloadGraph.addEventListener("click", async () => {
+        await loadGraphFromServer({ useTemporaryPhysics: true });
+      });
+
+      btnFitGraph.addEventListener("click", () => {
+        fitGraph();
+      });
+
+      btnReloadSelection.addEventListener("click", async () => {
+        await reloadSelection();
+      });
+
+      btnSave.addEventListener("click", async () => {
+        await saveCurrentSelection();
+      });
+
+      btnDeleteCurrentNode.addEventListener("click", async () => {
+        await deleteCurrentNode();
+      });
+
+      btnDebugGraph.addEventListener("click", async () => {
+        await debugGraph();
+      });
+
+      btnTogglePhysics.addEventListener("click", () => {
+        togglePhysics();
+      });
+
+      btnCreateNode.addEventListener("click", async () => {
+        await createNode();
+      });
+
+      btnCreateRelation.addEventListener("click", async () => {
+        await createRelation();
+      });
+
+      btnDeleteRelation.addEventListener("click", async () => {
+        await deleteRelation();
+      });
+
+      btnSearch.addEventListener("click", async () => {
+        await searchNodes();
+      });
+
+      btnClearSearch.addEventListener("click", () => {
+        clearSearch();
+      });
+
+      searchInput.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter") {
+          await searchNodes();
+        }
+      });
+    }
+
+    async function startApp() {
+      try {
+        updatePhysicsButtonUI();
+        initJsonEditor();
+        bindEvents();
+        await loadSchema();
+        await loadGraphFromServer({ useTemporaryPhysics: true, temporaryPhysicsDuration: 2200 });
+        updateEditorMeta(null);
+        setEditorStatus("请先在左侧图谱中选择一个节点。");
+      } catch (error) {
+        console.error(error);
+        setGraphStatus("应用启动失败：" + error.message, true);
+        setEditorStatus("应用启动失败：" + error.message, true);
+      }
+    }
+
+    startApp();
+  </script>
+</body>
+</html>
