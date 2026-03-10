@@ -1,176 +1,143 @@
-# JSON Editor
+# JSONEditor 二次开发实践：面向图数据库节点编辑的辅助工具
 
-[![Version](https://img.shields.io/npm/v/jsoneditor.svg)](https://www.npmjs.com/package/jsoneditor)
-[![Downloads](https://img.shields.io/npm/dm/jsoneditor.svg)](https://www.npmjs.com/package/jsoneditor)
-[![Maintenance](https://img.shields.io/maintenance/yes/2026.svg)](https://github.com/josdejong/jsoneditor/pulse)
-[![License](https://img.shields.io/github/license/josdejong/jsoneditor.svg)](https://github.com/josdejong/jsoneditor/blob/master/LICENSE)
-[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fjosdejong%2Fjsoneditor.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fjosdejong%2Fjsoneditor?ref=badge_shield)
+这是一个基于 [JSONEditor](https://github.com/josdejong/jsoneditor) 的二次开发项目，用于支持图数据库场景下的节点查看、模糊搜索、定位高亮与 JSON 属性编辑。
 
-JSON Editor is a web-based tool to view, edit, format, and validate JSON. It has various modes such as a tree editor, a code editor, and a plain text editor. The editor can be used as a component in your own web application. It can be loaded as CommonJS module, AMD module, or as a regular javascript file.
+本项目最初用于**非商业用途的工作辅助与课程作业实践**。在保留 JSONEditor 原有 JSON 编辑能力的基础上，结合前端页面重组与 Python 服务端扩展，补充了更适合图谱资产编辑场景的搜索与定位功能。
 
-The library was originally developed as core component of the popular web application https://jsoneditoronline.org and has been open sourced since then.
+> **说明**
+> - 本项目是基于 JSONEditor 的**非官方衍生项目**
+> - 原项目采用 **Apache License 2.0**
+> - 本仓库仅用于学习、作业展示与内部辅助使用，不代表原项目官方立场
 
-Supported browsers: Chrome, Firefox, Safari, Edge.
+---
 
-<img alt="json editor" src="https://raw.github.com/josdejong/jsoneditor/master/misc/jsoneditor.png"> &nbsp; <img alt="code editor" src="https://raw.github.com/josdejong/jsoneditor/master/misc/codeeditor.png">
+## 📌 项目背景
 
-Continuous integration tests are run on [GitHub Actions](https://github.com/josdejong/mathjs/actions), and [LambdaTest](https://www.lambdatest.com) is used to test on all major browsers.
+JSONEditor 适合承担各类 JSON 编辑工作，其优点主要体现在：
 
-[![LambdaTest](https://raw.github.com/josdejong/mathjs/master/misc/lambdatest.svg)](https://www.lambdatest.com)
+- 结构展示清晰
+- 编辑方式直观
+- 集成成本较低
+- 便于对关键字段进行只读控制
 
-Thanks, GitHub Actions and LambdaTest for the generous support for this open source project!
+但在图数据库或知识图谱编辑场景中，JSONEditor 本身仍然更偏向于“结构化 JSON 编辑器”，而不是“图谱资产管理工具”。  
+当用户面对大规模节点数据时，往往难以快速找到并定位到需要编辑的具体节点。
 
-## Successor: svelte-jsoneditor
+因此，本项目围绕以下目标进行了扩展：
 
-This library [`jsoneditor`](https://github.com/josdejong/jsoneditor) has a successor: [`svelte-jsoneditor`](https://github.com/josdejong/svelte-jsoneditor). The new editor is not a one-to-one replacement, so there may be reasons to stick with `jsoneditor`. 
-The main differences between the two [are described here](https://github.com/josdejong/svelte-jsoneditor#differences-between-josdejongsvelte-jsoneditor-and-josdejongjsoneditor).
+- 将 JSONEditor 用作节点属性编辑器
+- 增加独立的节点模糊搜索能力
+- 增加节点定位与高亮闪烁反馈
+- 保留图谱编辑中的关键字段只读约束
+- 配合后端服务实现图数据库数据查询与辅助操作
 
-## Features
+---
 
-JSONEditor has various modes, with the following features.
+## ✨ 功能特性
 
-### Tree mode
+本项目当前包含以下核心功能：
 
-- Change, add, move, remove, and duplicate fields and values.
-- Sort arrays and objects.
-- Transform JSON using [JMESPath](http://jmespath.org/) queries.
-- Colorized code.
-- Color picker.
-- Search & highlight text in the tree view.
-- Undo and redo all actions.
-- JSON schema validation (powered by [ajv](https://github.com/epoberezkin/ajv)).
+### 1. JSON 节点属性编辑
+- 使用 JSONEditor 作为右侧属性编辑面板
+- 支持 `tree` / `form` / `view` / `code` 等模式
+- 可直接查看和修改节点属性
 
-### Code mode
+### 2. 保留字段只读控制
+为了避免误改图谱中的关键标识字段，以下字段被设置为只读：
 
-- Colorized code (powered by [Ace](https://ace.c9.io)).
-- Inspect JSON (powered by [Ace](https://ace.c9.io)).
-- Format and compact JSON.
-- Repair JSON.
-- JSON schema validation (powered by [ajv](https://github.com/epoberezkin/ajv)).
+- `id`
+- `table`
+- `entityType`
 
-### Text mode
+这有助于降低误操作风险，保证图谱节点的基本结构稳定。
 
-- Format and compact JSON.
-- Repair JSON.
-- JSON schema validation (powered by [ajv](https://github.com/epoberezkin/ajv)).
+### 3. 独立模糊搜索
+针对 JSONEditor 自带搜索不适合当前图谱场景的问题，项目单独实现了搜索栏，并基于 **Levenshtein 距离** 实现节点名称模糊匹配。
 
-### Preview mode
+搜索支持：
 
-- Handle large JSON documents up to 500 MiB.
-- Transform JSON using [JMESPath](http://jmespath.org/) queries.
-- Format and compact JSON.
-- Repair JSON.
-- JSON schema validation (powered by [ajv](https://github.com/epoberezkin/ajv)).
+- 按节点 `name` 字段模糊查询
+- 返回候选节点列表
+- 展示所属表、节点 ID、编辑距离
+- 点击结果后自动定位到对应节点
 
-## Documentation
+### 4. 搜索结果定位与高亮
+当用户点击搜索结果或选中节点后：
 
-- Documentation:
-  - [API](https://github.com/josdejong/jsoneditor/tree/master/docs/api.md)
-  - [Usage](https://github.com/josdejong/jsoneditor/tree/master/docs/usage.md)
-  - [Shortcut keys](https://github.com/josdejong/jsoneditor/tree/master/docs/shortcut_keys.md)
-- [Examples](https://github.com/josdejong/jsoneditor/tree/master/examples)
-- [Source](https://github.com/josdejong/jsoneditor)
-- [History](https://github.com/josdejong/jsoneditor/blob/master/HISTORY.md)
+- 图谱视图自动聚焦目标节点
+- 目标节点触发高亮闪烁效果
+- 同步加载节点详细信息到右侧编辑区
 
+这样可以在较大的图谱中快速找到目标节点，减少“看得到 JSON、找不到图上位置”的问题。
 
-## Install
+### 5. 图谱编辑辅助功能
+除 JSON 属性编辑外，项目还补充了常见图谱编辑能力，例如：
 
-with npm (recommended):
+- 添加节点
+- 删除节点
+- 添加关系
+- 删除关系
 
-    npm install jsoneditor
+这些功能可与搜索能力配合使用，提高图谱内容维护效率。
 
-Alternatively, you can use another JavaScript package manager like https://yarnpkg.com/, or a CDN such as https://cdnjs.com/ or https://www.jsdelivr.com/.
+---
 
-## Use
+## 🛠 技术实现概览
 
-> Note that in the following example, you'll have to change the urls `jsoneditor/dist/jsoneditor.min.js` and `jsoneditor/dist/jsoneditor.min.css` to match the place where you've downloaded the library, or fill in the URL of the CDN you're using.
+本项目采用了“前端页面重组 + Python 服务端扩展”的实现方式。
 
-```html
-<!DOCTYPE HTML>
-<html lang="en">
-<head>
-    <!-- when using the mode "code", it's important to specify charset utf-8 -->
-    <meta charset="utf-8">
+### 前端部分
+前端主要负责：
 
-    <link href="jsoneditor/dist/jsoneditor.min.css" rel="stylesheet" type="text/css">
-    <script src="jsoneditor/dist/jsoneditor.min.js"></script>
-</head>
-<body>
-    <div id="jsoneditor" style="width: 400px; height: 400px;"></div>
+- 图谱可视化展示
+- JSONEditor 实例挂载
+- 搜索栏与搜索结果渲染
+- 节点定位、高亮与交互联动
 
-    <script>
-        // create the editor
-        const container = document.getElementById("jsoneditor")
-        const options = {}
-        const editor = new JSONEditor(container, options)
+## 🔍 搜索机制说明
+本项目采用 Levenshtein 距离 作为模糊搜索依据。
 
-        // set json
-        const initialJson = {
-            "Array": [1, 2, 3],
-            "Boolean": true,
-            "Null": null,
-            "Number": 123,
-            "Object": {"a": "b", "c": "d"},
-            "String": "Hello World"
-        }
-        editor.set(initialJson)
+### 搜索流程
+- 用户在前端输入关键词
+- 前端调用 /api/search
+- 后端读取各节点表中的 id 与 name
+- 对关键词和节点名称计算编辑距离
+- 将结果按距离、名称长度等规则排序
+- 返回候选列表供前端展示
 
-        // get json
-        const updatedJson = editor.get()
-    </script>
-</body>
-</html>
-```
+#### 这种搜索方式适合以下情况：
 
+- 节点名称有轻微拼写误差
+- 用户只能记住部分词形
+- 图谱规模较大，人工查找成本高
 
-## Build
+##### 当前特点
+- 实现简单，便于作业与原型阶段集成
+- 与现有图数据库查询流程兼容
+- 能有效提升节点查找效率
 
-The code of the JSON Editor is located in the folder `./src`. To build 
-jsoneditor:
+##### 当前局限
+- 搜索效率依赖节点总量，规模继续扩大后可能需要优化
+- 当前主要基于 name 字段匹配
+- 仍属于辅助搜索，而非完整检索系统
 
-- Install dependencies:
+## 📷 界面与效果说明
+本项目的整体界面由以下区域组成：
+- 左侧：图谱总览区域
+- 左上：自定义搜索栏
+- 右侧：节点属性编辑区域
+- 右下：图谱编辑操作区域
 
-  ```
-  npm install
-  ```
+![](/docs/kuzu-picture/1.png)
+![](/docs/kuzu-picture/2.png)
+![](/docs/kuzu-picture/3.png)
+![](/docs/kuzu-picture/4.png)
+![](/docs/kuzu-picture/5.png)
+![](/docs/kuzu-picture/6.png)
 
-- Build JSON Editor:
-
-  ```
-  npm run build
-  ```
-
-  This will generate the files `./jsoneditor.js`, `./jsoneditor.css`, and  
-  minified versions in the dist of the project.
-
-- To automatically build when a source file has changed:
-
-  ```
-  npm start
-  ```
-
-  This will update `./jsoneditor.js` and `./jsoneditor.css` in the dist folder
-  on every change, but it will **NOT** update the minified versions as that's
-  an expensive operation.
-
-
-## Test
-
-Run unit tests:
-
-```
-npm test
-```
-
-Run code linting ([JavaScript Standard Style](https://standardjs.com/)):
-
-```
-npm run lint
-```
-
-
-## License
-
-`jsoneditor` is released as open source under the permissive the [Apache 2.0 license](LICENSE.md).
-
-**If you are using jsoneditor commercially, there is a _social_ (but no legal) expectation that you help fund its maintenance. [Start here](https://github.com/sponsors/josdejong).**
+主要效果：
+- 搜索时返回按编辑距离排序的候选节点
+- 点击搜索结果后自动聚焦并高亮目标节点
+- 节点属性可在 JSONEditor 中直接查看和编辑
+- 保留字段只读，普通业务字段可编辑
+- 支持节点与关系的增删操作

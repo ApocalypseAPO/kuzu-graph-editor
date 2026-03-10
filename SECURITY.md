@@ -1,5 +1,32 @@
 # Security Policy
 
-## Reporting a Vulnerability
+本项目是一个基于 JSONEditor 的非官方二次开发项目，当前主要用于课程作业展示以及非商业场景下的工作辅助。
 
-Please report (suspected) security vulnerabilities privately to one of the maintainers of the library, for example to Jos de Jong: https://github.com/josdejong.
+由于本项目包含前端页面、Python 后端接口以及图数据库相关操作。它是纯粹的编辑器项目，如果您需要将其作为发布至网上，需要自行补全安全防护。
+
+---
+
+## 说明边界
+
+请注意区分以下两类问题：
+
+### 属于本项目的问题
+例如：
+
+- 新增的 Python HTTP 接口
+- 搜索接口与参数处理
+- 图数据库查询封装
+- 本项目自定义前端逻辑
+- 节点定位、高亮、编辑联动部分
+
+这类问题应在当前仓库范围内处理。
+
+### 属于上游项目的问题
+例如：
+
+- JSONEditor 原生核心功能中的漏洞
+- 上游未修改模块中的已知安全缺陷
+- 上游依赖链带来的问题
+
+这类问题建议同时关注或报告给上游项目：  
+[https://github.com/josdejong/jsoneditor](https://github.com/josdejong/jsoneditor)

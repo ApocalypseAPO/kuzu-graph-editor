@@ -1,23 +1,8 @@
-## Contributing
+# Contributing
 
-Contributions to the `jsoneditor` library are very welcome! We can't do this
-alone. You can contribute in different ways: spread the word, report bugs, come
-up with ideas and suggestions, and contribute to the code.
+感谢你关注这个项目。
 
-There are a few preferences regarding code contributions:
+本仓库是一个基于 [JSONEditor](https://github.com/josdejong/jsoneditor) 的二次开发项目，主要面向图数据库节点编辑场景，当前主要用于课程作业展示以及非商业场景下的工作辅助。
 
--   Send pull requests to the `develop` branch, not the `master` branch.
--   You can use modern JavaScript features, the code is transpiled using Babel.
--   `jsoneditor` follows the https://standardjs.com/ code style. To test:
-
-    ```
-    npm run lint
-    ```
-
--   If possible, create a unit test for any new functionality. To run tests:
-
-    ```
-    npm test
-    ```
-
-Thanks!
+本项目不是 JSONEditor 官方仓库，也不是其官方发布版本。  
+如果你发现的问题属于 JSONEditor 原生组件本身，也建议同时参考或反馈给上游项目。
